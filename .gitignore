@@ -1,0 +1,15 @@
+node_modules
+.next
+out
+.data
+.env
+.env.local
+.env.*.local
+.env.neon
+*.log
+shots
+tsconfig.tsbuildinfo
+.vercel
+
+.vercel
+content/

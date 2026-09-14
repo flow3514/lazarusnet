@@ -1,0 +1,176 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Theme tokens: RGB triplets so Tailwind opacity modifiers keep working. */
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: 5 5 5; /* #050505 */
+  --bg-2: 9 9 9; /* #090909 */
+  --surface: 16 16 16; /* #101010 */
+  --surface-2: 22 22 22;
+  --ink: 255 255 255;
+  --muted: 138 131 136; /* #8A8388 */
+  --line: 255 255 255;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --glass: rgba(5, 5, 5, 0.72);
+  --grid: rgba(255, 255, 255, 0.035);
+  --chart-grid: rgba(255, 255, 255, 0.07);
+  --chart-axis: #8a8388;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: 247 244 246; /* #F7F4F6 */
+  --bg-2: 251 250 251;
+  --surface: 255 255 255;
+  --surface-2: 250 248 249;
+  --ink: 21 18 22; /* #151216 */
+  --muted: 138 131 136;
+  --line: 0 0 0;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.14);
+  --glass: rgba(247, 244, 246, 0.78);
+  --grid: rgba(0, 0, 0, 0.035);
+  --chart-grid: rgba(0, 0, 0, 0.07);
+  --chart-axis: #8a8388;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-bg text-ink font-sans antialiased;
+    font-feature-settings: 'cv11', 'ss01', 'tnum';
+  }
+  ::selection {
+    background: rgba(217, 41, 137, 0.35);
+  }
+  a {
+    color: inherit;
+  }
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+  :focus-visible {
+    outline: 2px solid #d92989;
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .wrap {
+    @apply mx-auto w-full max-w-wrap px-5 sm:px-8;
+  }
+  .card {
+    @apply rounded-xl2 border bg-surface shadow-card;
+    border-color: var(--border);
+  }
+  .glass {
+    background: var(--glass);
+    backdrop-filter: saturate(140%) blur(10px);
+    -webkit-backdrop-filter: saturate(140%) blur(10px);
+  }
+  .eyebrow {
+    @apply font-mono text-[11px] uppercase tracking-[0.18em] text-muted;
+  }
+  .h-display {
+    @apply text-4xl font-semibold leading-[1.05] tracking-[-0.02em] sm:text-5xl lg:text-6xl;
+  }
+  .h-section {
+    @apply text-3xl font-semibold leading-[1.1] tracking-[-0.02em] sm:text-4xl;
+  }
+  .grid-bg {
+    background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+  .magenta-glow {
+    background: radial-gradient(60% 60% at 50% 50%, rgba(217, 41, 137, 0.22), transparent 70%);
+  }
+  .tri-accent {
+    clip-path: polygon(0 0, 100% 50%, 0 100%);
+  }
+  .status-dot {
+    @apply inline-block h-1.5 w-1.5 rounded-full;
+  }
+  .kbd {
+    @apply rounded border px-1.5 py-0.5 font-mono text-[11px];
+    border-color: var(--border-strong);
+  }
+  .table-base {
+    @apply w-full text-sm;
+  }
+  .table-base th {
+    @apply eyebrow whitespace-nowrap px-3 py-2 text-left font-normal;
+    border-bottom: 1px solid var(--border);
+  }
+  .table-base td {
+    @apply px-3 py-2.5 align-middle;
+    border-bottom: 1px solid var(--border);
+  }
+  .table-base tr:last-child td {
+    border-bottom: 0;
+  }
+  .marquee {
+    overflow: hidden;
+    mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  }
+  .marquee-track {
+    display: inline-flex;
+    width: max-content;
+    animation: marquee 60s linear infinite;
+  }
+  .marquee:hover .marquee-track {
+    animation-play-state: paused;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .marquee-track {
+      animation: none;
+    }
+  }
+  .dot-live {
+    position: relative;
+  }
+  .dot-live::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background: currentColor;
+    animation: ping-soft 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+  pre.code {
+    @apply overflow-x-auto rounded-xl border bg-bg-2 p-4 font-mono text-[12.5px] leading-relaxed;
+    border-color: var(--border);
+  }
+}
+
+.recharts-cartesian-grid line {
+  stroke: var(--chart-grid);
+}
+.recharts-text {
+  fill: var(--chart-axis);
+  font-size: 11px;
+  font-family: var(--font-mono);
+}

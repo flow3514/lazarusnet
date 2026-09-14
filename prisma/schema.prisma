@@ -1,0 +1,281 @@
+// Lazarus Net — community-owned compute.
+// Credits are stored as BigInt micro-credits (1 credit = 1_000_000 µcr).
+// Money is stored as BigInt micro-USD (1 USD = 1_000_000 µUSD). Nothing here
+// is ever fabricated: rows only exist when a real event produced them.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Identity ────────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  wallets        Wallet[]
+  computeAccount ComputeAccount?
+  apiKeys        ApiKey[]
+  jobs           ComputeJob[]
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  /// Checksummed EVM address.
+  address   String   @unique
+  chainId   Int
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// Single-use sign-in challenges (EIP-191 personal_sign).
+model WalletNonce {
+  nonce     String   @id
+  address   String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([address])
+}
+
+// ─── Compute credits ─────────────────────────────────────────────────────────
+
+model ComputeAccount {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Spendable balance in µcredits. Never negative (enforced in transactions).
+  balance        BigInt   @default(0)
+  /// Sum of open reservations in µcredits.
+  reserved       BigInt   @default(0)
+  /// Lifetime consumption in µcredits.
+  lifetimeUsed   BigInt   @default(0)
+  /// Last epoch key for which an allocation was credited (e.g. "2026-09").
+  lastEpochKey   String?
+  lastTierId     String?
+  /// Last observed token balance (raw units, as a decimal string) and when.
+  lastTokenBalance String?
+  lastBalanceAt  DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  ledger ComputeCreditLedger[]
+}
+
+enum LedgerEntryType {
+  epoch_allocation
+  compute_usage
+  refund
+  manual_adjustment
+  protocol_reward
+}
+
+model ComputeCreditLedger {
+  id         String          @id @default(cuid())
+  accountId  String
+  account    ComputeAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  type       LedgerEntryType
+  /// Signed delta in µcredits (positive = credit, negative = debit).
+  amount     BigInt
+  /// Balance after this entry, in µcredits.
+  balanceAfter BigInt
+  jobId      String?
+  job        ComputeJob?     @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  epochKey   String?
+  note       String?
+  /// Who performed a manual adjustment (admin wallet), when applicable.
+  actor      String?
+  createdAt  DateTime        @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([jobId])
+  @@unique([accountId, epochKey, type])
+}
+
+// ─── Jobs ────────────────────────────────────────────────────────────────────
+
+enum JobStatus {
+  queued
+  running
+  completed
+  failed
+}
+
+enum JobOrigin {
+  wallet
+  api_key
+}
+
+model ComputeJob {
+  id             String    @id @default(cuid())
+  userId         String?
+  user           User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  walletAddress  String
+  origin         JobOrigin @default(wallet)
+  apiKeyId       String?
+  apiKey         ApiKey?   @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+  provider       String
+  model          String
+  /// sha256 of the prompt. The prompt itself is never stored.
+  promptHash     String
+  /// Client-supplied idempotency key (unique per wallet).
+  idempotencyKey String?
+  tokensInput    Int       @default(0)
+  tokensOutput   Int       @default(0)
+  /// µcredits reserved before execution.
+  creditsReserved BigInt   @default(0)
+  /// µcredits actually charged after execution.
+  creditsUsed    BigInt    @default(0)
+  status         JobStatus @default(queued)
+  providerJobId  String?
+  errorMessage   String?
+  /// Output text (bounded). Only kept for wallet-session jobs so /jobs can show it.
+  output         String?
+  latencyMs      Int?
+  createdAt      DateTime  @default(now())
+  startedAt      DateTime?
+  completedAt    DateTime?
+
+  ledger        ComputeCreditLedger[]
+  providerUsage ProviderUsage[]
+  revenue       RevenueRecord[]
+
+  @@unique([walletAddress, idempotencyKey])
+  @@index([walletAddress, createdAt])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ─── Model registry ──────────────────────────────────────────────────────────
+
+enum ModelStatus {
+  ONLINE
+  OFFLINE
+  MAINTENANCE
+}
+
+model ModelRegistry {
+  id            String      @id
+  name          String
+  type          String
+  provider      String
+  architecture  String
+  contextLength Int
+  /// Price the network charges external users, in µUSD per million tokens.
+  pricePerMillionTokens BigInt
+  /// Cost to holders in µcredits per million tokens.
+  creditsPerMillionTokens BigInt
+  holderAccess  Boolean     @default(true)
+  enabled       Boolean     @default(true)
+  status        ModelStatus @default(OFFLINE)
+  /// Provider-side model identifier when it differs from `id`.
+  endpointModel String?
+  lastCheckedAt DateTime?
+  lastError     String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+// ─── Usage, revenue, treasury ────────────────────────────────────────────────
+
+model ProviderUsage {
+  id           String     @id @default(cuid())
+  provider     String
+  model        String
+  jobId        String?
+  job          ComputeJob? @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  tokensInput  Int
+  tokensOutput Int
+  /// Provider-reported cost in µUSD when the provider returns billing data; null otherwise.
+  costMicroUsd BigInt?
+  latencyMs    Int?
+  createdAt    DateTime   @default(now())
+
+  @@index([createdAt])
+  @@index([provider, model])
+}
+
+enum RevenueSource {
+  external_api
+  holder_subsidy
+  provider_billing
+  contract
+}
+
+model RevenueRecord {
+  id           String        @id @default(cuid())
+  source       RevenueSource
+  jobId        String?
+  job          ComputeJob?   @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  /// Revenue (or subsidy cost) in µUSD.
+  amountMicroUsd BigInt
+  /// Portion routed to the treasury in µUSD (0 until a contract or policy is configured).
+  treasuryMicroUsd BigInt     @default(0)
+  note         String?
+  txHash       String?
+  createdAt    DateTime      @default(now())
+
+  @@index([createdAt])
+  @@index([source])
+}
+
+enum TreasuryRecordType {
+  fee_inflow
+  compute_allocation
+  compute_spend
+  gpu_capacity_purchase
+}
+
+model TreasuryRecord {
+  id           String             @id @default(cuid())
+  type         TreasuryRecordType
+  amountMicroUsd BigInt
+  /// GPU-hours or capacity units for capacity purchases; null otherwise.
+  capacityUnits Int?
+  txHash       String?
+  blockNumber  BigInt?
+  note         String?
+  recordedBy   String?
+  createdAt    DateTime           @default(now())
+
+  @@index([type, createdAt])
+}
+
+// ─── Developer API ───────────────────────────────────────────────────────────
+
+model ApiKey {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  walletAddress String
+  name          String
+  /// sha256(hex) of the raw key. The raw key is shown once and never stored.
+  hashedKey     String    @unique
+  keyPrefix     String
+  createdAt     DateTime  @default(now())
+  lastUsedAt    DateTime?
+  revokedAt     DateTime?
+
+  jobs ComputeJob[]
+
+  @@index([walletAddress])
+}
+
+// ─── Protocol configuration (admin) ──────────────────────────────────────────
+
+model ProtocolConfig {
+  key       String   @id
+  value     Json
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
