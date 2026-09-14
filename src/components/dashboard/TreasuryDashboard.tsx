@@ -1,6 +1,8 @@
 'use client'
 import { useQuery } from '@tanstack/react-query'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, Rocket } from 'lucide-react'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 import { MetricCard } from '@/components/dashboard/MetricCard'
 import { StateBlock } from '@/components/dashboard/StateBlock'
 import { ProtocolFlow } from '@/components/dashboard/ProtocolFlow'
@@ -21,7 +23,14 @@ export function TreasuryDashboard() {
   return (
     <div className="space-y-8">
       {!data.contract.configured ? (
-        <StateBlock state="awaiting" message="Awaiting treasury contract integration. Set NEXT_PUBLIC_TREASURY_CONTRACT (and chain RPC) to read totalProtocolFees(), computeAllocationBps() and totalComputeSpend() on-chain. Until then only admin-recorded events with transaction hashes are shown." />
+        <div className="space-y-3">
+          <StateBlock state="awaiting" message="Awaiting treasury contract integration. Until a LazarusTreasury contract is deployed and published, only admin-recorded events with transaction hashes are shown here — no figure is estimated." />
+          <Link href="/deploy">
+            <Button variant="secondary" size="sm">
+              <Rocket size={14} /> Deploy the treasury contract
+            </Button>
+          </Link>
+        </div>
       ) : (
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <Badge tone="ok" dot>
