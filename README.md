@@ -6,6 +6,15 @@ Lazarus Net is a community-owned compute network for Robinhood Chain. Trading ac
 
 Nothing in this application is fabricated. When a data source is not configured the UI says so ("Awaiting live network data", "Not connected", "Token contract not configured", "Awaiting treasury contract integration") instead of showing a number.
 
+## Live
+
+| | |
+| --- | --- |
+| Site | https://www.lazarusnet.org |
+| X | https://x.com/LazarusNetRH |
+| Repo | https://github.com/flow3514/lazarusnet |
+| $LAZARUS | `0x41b305a081ad8d54fa3b54896fe6b8837599e662` on Robinhood Chain (4663) |
+
 ## Stack
 
 Next.js 15 (App Router) · TypeScript · Tailwind CSS · shadcn-style UI primitives · Framer Motion · wagmi + viem · Prisma + PostgreSQL · Zod · Recharts.
@@ -51,8 +60,8 @@ Checks: `npm run typecheck`, `npm run lint`, `npm test`, and `node scripts/e2e.m
 
 ## Going live (no demo data)
 
-1. **Treasury contract** — open `/deploy`, deploy `contracts/LazarusTreasury.sol` from your own wallet (MetaMask signs; the site never holds a key), then either click *Activate on this site* as an admin or run `npm run treasury:ca -- 0x…` to publish it to Vercel env. Fees sent to the contract, the allocation and compute spend are then read on-chain.
-2. **Token contract** — once the ERC-20 is launched: `npm run token:ca -- 0x…` (verifies name/symbol/decimals/supply first) or paste it in `/admin`.
+1. **Token** — done: `$LAZARUS` is live and `/api/token` reads its contract, transfer activity and pool figures. Republish with `npm run token:ca -- 0x…` if the address ever changes.
+2. **Treasury contract** — open `/deploy`, deploy `contracts/LazarusTreasury.sol` from your own wallet (MetaMask signs; the site never holds a key), then either click *Activate on this site* as an admin or run `npm run treasury:ca -- 0x…` to publish it to Vercel env. Fees sent to the contract, the allocation and compute spend are then read on-chain.
 3. **GPU provider** — set `GPU_PROVIDER=openai-compatible`, `GPU_PROVIDER_ENDPOINT` and `GPU_PROVIDER_API_KEY` in `.env.neon` and run `npm run deploy`. Groq (`https://api.groq.com/openai/v1`), Together, Fireworks, OpenRouter and vLLM ids are all mapped through model aliases in `config/models.ts`, so the registry goes ONLINE without code changes.
 4. **Admins** — `ADMIN_WALLETS` lists the wallets allowed into `/admin` and to activate contracts.
 

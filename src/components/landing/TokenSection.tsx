@@ -31,7 +31,10 @@ export function formatUsdCompact(v: string | null): string | null {
   if (!Number.isFinite(n)) return null
   if (n >= 1_000_000) return `$${(n / 1_000_000).toLocaleString('en-US', { maximumFractionDigits: 2 })}M`
   if (n >= 1_000) return `$${(n / 1_000).toLocaleString('en-US', { maximumFractionDigits: 1 })}k`
-  return `$${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
+  if (n >= 1) return `$${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
+  if (n === 0) return '$0'
+  // Small amounts keep four significant digits instead of rounding to $0.
+  return formatUsdPrice(v)
 }
 
 function Stat({ label, value, sub, tone }: { label: string; value: React.ReactNode; sub?: React.ReactNode; tone?: 'up' | 'down' }) {

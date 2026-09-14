@@ -7,7 +7,7 @@ export const site = {
   chainLabel: 'Built for Robinhood Chain',
   x: 'https://x.com/LazarusNetRH',
   xHandle: '@LazarusNetRH',
-  github: 'https://github.com/',
+  github: 'https://github.com/flow3514/lazarusnet',
 }
 
 export const NAV = [
